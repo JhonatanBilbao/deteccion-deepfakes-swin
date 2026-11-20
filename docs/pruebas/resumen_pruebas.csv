@@ -1,0 +1,21 @@
+prueba,ok,detalle,resultado
+1 Preprocesamiento,True,"(1,3,224,224) en [0,1]",OK
+2a Forma del mapa,True,"(1,3,224,112)",OK
+2b Rostro simétrico da mapa nulo,True,máx 6.9e-06,OK
+2c El mapa localiza una alteración de un solo lado,True,zona alterada x11 más energía que el resto,OK
+3 PatchEmbed,True,"(1,3136,96); rechaza 220×220",OK
+4 Partición y reconstrucción,True,"64 ventanas, error 0",OK
+5 Máscara de ventanas desplazadas,True,"(64,49,49), valores {0,-100}",OK
+6 Window Attention,True,filas suman 1; máscara bloquea,OK
+7 Patch Merging,True,3 reducciones hasta 7×7×768,OK
+8 Swin completo,True,768 -> 256; 27.52 M parámetros,OK
+9 CNN lateral,True,"(1,3,224,112) -> (1,256)",OK
+10 Fusión y Branch Dropout,True,≈5 % + 5 % solo en entrenamiento,OK
+11 MLP,True,"512 -> 2, softmax suma 1",OK
+12 Focal Loss,True,= CE con γ=0; gradiente correcto,OK
+13 Detector completo,True,"forward, backward, ablaciones y video",OK
+14 Aprendizaje,True,pérdida x0.00,OK
+15 Calidad y normalización,True,degradación creciente; mediana 0 y recorte ±5,OK
+16 Partición por identidad,True,0 identidades compartidas; reproducible con seed 42,OK
+17 Métricas,True,AUC simulado 0.954,OK
+18 Gradientes numéricos,True,32 verificaciones en 12 s,OK

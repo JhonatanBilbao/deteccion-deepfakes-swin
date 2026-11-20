@@ -41,10 +41,10 @@ src/                     código fuente
   verificar_dataset.py   auditoría del dataset
   diagnostico_asimetria.py  análisis del mapa de asimetría
   verificar_swin_timm.py comparación con el Swin-T de timm
-  build_notebook.py, build_fases.py  generan los notebooks
-notebooks/               notebook principal y smoke test (Kaggle)
+  build_notebook.py, build_fases.py, build_pruebas.py  generan los notebooks
+notebooks/               notebook principal, smoke test y pruebas por partes
 kaggle/                  scripts para subir y ejecutar en Kaggle + notebooks de las fases
-docs/                    diagrama, tablas y figuras de resultados
+docs/                    diagrama, tablas, figuras de resultados y de las pruebas
 ```
 
 ## Instalación
@@ -56,11 +56,53 @@ pip install -r requirements.txt
 pip install cupy-cuda12x
 ```
 
-Comprobar que los gradientes son correctos (unos minutos en CPU):
+Comprobar que los gradientes son correctos (menos de un minuto en CPU):
 
 ```bash
 cd src && DF_BACKEND=numpy python gradcheck.py
 ```
+
+## Pruebas por partes
+
+[`notebooks/pruebas_por_partes.ipynb`](notebooks/pruebas_por_partes.ipynb) prueba cada componente por separado,
+en el orden en que los datos recorren el pipeline. Cada sección imprime las dimensiones de los tensores y
+termina con una comprobación `OK` o `FALLA`:
+
+| # | Parte | Qué se comprueba |
+|---|---|---|
+| 1 | Preprocesamiento | rostro de 224×224×3 con valores en [0, 1] |
+| 2 | Mapa diferencial | forma 224×112; un rostro simétrico da un mapa nulo; una alteración en una sola mejilla aparece justo en esa zona |
+| 3 | PatchEmbed | (1, 3, 224, 224) → (1, 3136, 96); rechaza otras resoluciones |
+| 4 | Partición en ventanas | 64 ventanas de 7×7; la reconstrucción es exacta |
+| 5 | Ventanas desplazadas | máscara (64, 49, 49) con valores 0 y −100 |
+| 6 | Window Attention | las filas de atención suman 1; la máscara bloquea regiones no contiguas |
+| 7 | Patch Merging | 56×56×96 → 28×28×192 → 14×14×384 → 7×7×768 |
+| 8 | Swin completo | forma de salida en cada bloque, vector 768 → 256, 27.5 M de parámetros |
+| 9 | CNN lateral | (1, 3, 224, 112) → (1, 256), bloque por bloque |
+| 10 | Fusión y Branch Dropout | vector de 512; cada rama se apaga ≈5 % de las veces y nunca en evaluación |
+| 11 | MLP | 512 → 2; softmax suma 1; dropout solo en entrenamiento |
+| 12 | Focal Loss | igual a la entropía cruzada con γ = 0; gradiente analítico = numérico; estable con logits extremos |
+| 13 | Detector completo | forward y backward, ablaciones, máscara por giro y promedio de 16 fotogramas por video |
+| 14 | Aprendizaje | con 16 ejemplos el modelo los memoriza (la pérdida baja y acierta el 100 %) |
+| 15 | Calidad y normalización | degradación creciente por nivel; estadísticos calculados solo con train |
+| 16 | Partición | 0 identidades compartidas entre train, val y test; reproducible con semilla 42 |
+| 17 | Métricas | AUC, F1, precisión, recall, EER, matriz de confusión e intervalo bootstrap |
+| 18 | Gradientes | backpropagation manual contra diferencias finitas (32 verificaciones) |
+
+El notebook guardado ya tiene las salidas: **20 de 20 pruebas superadas** en CPU, en unos 90 segundos.
+Las figuras están en [`docs/pruebas/`](docs/pruebas/).
+
+Por defecto usa un rostro sintético dibujado en código, para no depender de datos con licencia.
+Para usar un rostro real, pon la ruta de una imagen o un video en `RUTA_ROSTRO`; con `CARGAR_IMAGENET = True`
+la sección 8 carga los pesos preentrenados de Swin-T.
+
+```bash
+pip install jupyter
+cd notebooks && DF_BACKEND=numpy jupyter notebook pruebas_por_partes.ipynb
+```
+
+En Kaggle basta con una celda inicial `!git clone https://github.com/JhonatanBilbao/deteccion-deepfakes-swin`
+y abrir el notebook desde esa carpeta (busca `src/` automáticamente).
 
 ## Datos
 
