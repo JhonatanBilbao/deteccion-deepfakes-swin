@@ -182,7 +182,7 @@ El rostro se divide en dos hemicaras de 224×112. La izquierda se refleja y se r
 
 Hay dos modos en `bilateral_diff_map`:
 - `pixel`: la resta directa del diseño original.
-- `residual` (el que se usa ahora): antes de restar, quita a cada hemicara su versión desenfocada (σ=1) y la normaliza por su energía. Así el mapa mide diferencias de **textura** y no de pose o iluminación.
+- `residual` (el que se usa ahora): antes de restar, quita a cada hemicara su versión desenfocada (σ=1) y la normaliza por su energía. Así el mapa mide diferencias de textura y no de pose o iluminación.
 
 Comprobaciones:
 - Un rostro perfectamente simétrico debe dar un mapa nulo.
@@ -277,8 +277,8 @@ ventanas = window_partition(mapa, 7)
 reconstruido = window_reverse(ventanas, 7, 1, 56, 56)
 err = float(xp.abs(reconstruido - mapa).max())
 print("Mapa de parches:", forma(mapa))
-print("Ventanas (n, 7·7, C):", forma(ventanas))
-print(f"Atención global: 3136² = {3136**2:,} pares | por ventanas: 64·49² = {64 * 49**2:,} pares "
+print("Ventanas (n, 7*7, C):", forma(ventanas))
+print(f"Atención global: 3136^2 = {3136**2:,} pares | por ventanas: 64*49^2 = {64 * 49**2:,} pares "
       f"(x{3136**2 / (64 * 49**2):.0f} menos)")
 print(f"Error de reconstrucción: {err:.1e}")
 comprobar("4 Partición y reconstrucción", forma(ventanas) == (64, 49, 96) and err == 0.0, "64 ventanas, error 0")
@@ -641,8 +641,8 @@ comprobar("14 Aprendizaje", hist[-1] < 0.25 * hist[0] and acierto == 1.0, f"pér
 md(r"""
 ## 15 Aumento de calidad y normalización robusta
 
-El aumento simula videos de mala calidad (baja resolución, desenfoque, ruido, brillo y contraste) **solo en entrenamiento**.
-`RobustNormalizer` calcula la mediana y el IQR por canal **solo con train** y luego se aplica igual a val y test.
+El aumento simula videos de mala calidad (baja resolución, desenfoque, ruido, brillo y contraste) solo en entrenamiento.
+`RobustNormalizer` calcula la mediana y el IQR por canal solo con train y luego se aplica igual a val y test.
 """)
 code(r"""
 from augment import QUALITY_LEVELS, QualityAugmenter, RobustNormalizer, apply_degradation
@@ -674,7 +674,7 @@ comprobar("15 Calidad y normalización", dif["buena"] == 0 and orden == sorted(o
 md(r"""
 ## 16 Partición sin fugas de datos
 
-La partición se hace por **video y por identidad**, nunca por fotogramas. Un video falso de FF++ se llama `origen_destino` y combina dos identidades: todas las que estén conectadas deben caer en el mismo conjunto.
+La partición se hace por video y por identidad, nunca por fotogramas. Un video falso de FF++ se llama `origen_destino` y combina dos identidades: todas las que estén conectadas deben caer en el mismo conjunto.
 Se prueba con una lista simulada de 120 videos reales y 120 falsos.
 """)
 code(r"""

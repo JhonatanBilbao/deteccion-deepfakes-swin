@@ -28,7 +28,7 @@ class DeepfakeDetectorScratch(Module):
         self._keep_g, self._keep_l = 1.0, 1.0
 
     def forward(self, face: Array, diff_map: Array, lateral_mask: Optional[Array] = None) -> Array:
-        """lateral_mask (B,) en {0,1}: apaga la rama lateral en frames donde la comparación izquierda/derecha no es..."""
+        """lateral_mask (B,) con 0 o 1: en 0 se apaga la rama lateral de ese frame (cabeza muy girada)."""
         face, diff_map = bk.asarray(face), bk.asarray(diff_map)
         assert face.shape[0] == diff_map.shape[0], "face y diff_map deben tener el mismo B"
         B = face.shape[0]

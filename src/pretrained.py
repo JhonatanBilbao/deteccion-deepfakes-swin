@@ -48,7 +48,7 @@ def download(url: str = SWIN_T_URL, dst: str = "swin_tiny_imagenet.safetensors")
 
 
 def _normalize_keys(sd: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
-    """Unifica el formato antiguo (downsample al FINAL de la etapa i) con el de timm >= 0.9 (downsample al INICIO..."""
+    """Pasa los nombres de timm >= 0.9 (downsample al inicio de la etapa) al formato antiguo."""
     old_style = any(k.startswith("layers.0.downsample") for k in sd)
     out = {}
     for k, v in sd.items():

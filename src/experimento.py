@@ -119,7 +119,7 @@ def preprocesar(cfg: PrepConfig) -> Dict:
         caches["celebdf"] = "cache_celebdf_test"
         extra["celebdf"] = cdf
 
-    # Normalización robusta: estadísticos SOLO de frames de train (rostro y ambos modos del mapa)
+    # Normalización robusta: estadísticos solo de frames de train (rostro y ambos modos del mapa)
     rng = np.random.RandomState(cfg.seed)
     tr_videos = np.array([i for i, v in enumerate(allv) if v.split == "train"])
     tr_frames = np.flatnonzero(np.isin(c23["frame_video"], tr_videos))
@@ -348,7 +348,7 @@ def analizar(score_globs: Sequence[str], out_dir: str, n_boot: int = 2000) -> Di
                 f, t, _ = roc_curve(g["etiqueta"], g["score"])
                 a_.plot(f, t, lw=1.5, label=f"{e} ({roc_auc_score(g['etiqueta'], g['score']):.3f})")
         a_.plot([0, 1], [0, 1], "--", c="gray", lw=1)
-        a_.set_title(f"ROC · {c} · semilla {seed0}")
+        a_.set_title(f"ROC: {c}: semilla {seed0}")
         a_.set_xlabel("FPR")
         a_.set_ylabel("TPR")
         a_.legend(fontsize=7)

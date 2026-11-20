@@ -61,7 +61,7 @@ def plot_history(histories: Dict[str, List[Dict]], path: str) -> matplotlib.figu
         ax[0].plot(e, [r["train_loss"] for r in h], marker="o", ms=3, label=name)
         ax[1].plot(e, [r["val_auc_buena"] for r in h], marker="o", ms=3, label=f"{name}")
         ax[2].plot(e, [r["val_auc_mala"] for r in h], marker="s", ms=3, label=f"{name}")
-    for a, t in zip(ax, ("Focal Loss (train)", "AUC val · calidad buena", "AUC val · calidad mala")):
+    for a, t in zip(ax, ("Focal Loss (train)", "AUC val: calidad buena", "AUC val: calidad mala")):
         a.set_title(t)
         a.set_xlabel("Época")
         a.grid(alpha=0.3)
@@ -163,7 +163,7 @@ def bootstrap_auc(y: np.ndarray, s: np.ndarray, groups: Optional[np.ndarray] = N
 def paired_bootstrap_auc_diff(y: np.ndarray, s_a: np.ndarray, s_b: np.ndarray,
                               groups: Optional[np.ndarray] = None, n_boot: int = 2000, seed: int = 42,
                               alpha: float = 0.05) -> Dict[str, float]:
-    """Diferencia AUC(a) - AUC(b) sobre los MISMOS videos, con IC y p-valor bilateral (bootstrap)."""
+    """Diferencia AUC(a) - AUC(b) sobre los mismos videos, con IC y p-valor bilateral (bootstrap)."""
     y, s_a, s_b = np.asarray(y), np.asarray(s_a), np.asarray(s_b)
     g = np.arange(len(y)) if groups is None else np.asarray(groups)
     rng = np.random.RandomState(seed)

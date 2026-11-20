@@ -56,7 +56,7 @@ FFPP_METHODS = ("Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures")  # proto
 
 def list_videos_ffpp(root: str, compression: str = "c23",
                      methods: Sequence[str] = FFPP_METHODS) -> List[VideoItem]:
-    """Estructura oficial de FaceForensics++ (script de descarga de los autores):..."""
+    """Lee la estructura original de FF++: original_sequences/youtube/<comp>/videos y manipulated_sequences/<metodo>/<comp>/videos."""
     items: List[VideoItem] = []
     d = os.path.join(root, "original_sequences", "youtube", compression, "videos")
     if os.path.isdir(d):
@@ -149,7 +149,7 @@ def find_dataset_dir(search_roots: Sequence[str]) -> Optional[str]:
 
 
 def quick_subset(videos: List[VideoItem], n_real: int = 25) -> List[VideoItem]:
-    """Subconjunto pequeño y balanceado: n_real videos reales + 1 fake por video destino (rotando los métodos de..."""
+    """n_real videos reales y un fake por cada uno, rotando el método. Solo para pruebas rápidas."""
     reals = sorted([v for v in videos if v.label == 0], key=lambda v: v.video_id)[:n_real]
     targets = [v.video_id for v in reals]
     by_target: Dict[str, List[VideoItem]] = defaultdict(list)
@@ -165,7 +165,7 @@ def quick_subset(videos: List[VideoItem], n_real: int = 25) -> List[VideoItem]:
 
 
 def smoke_subset(videos: List[VideoItem], n_per_class: int = 3) -> List[VideoItem]:
-    """Muestra mínima para el smoke test: n reales y n fakes con identidades disjuntas entre sí (cada video forma..."""
+    """n reales y n fakes con identidades distintas; con n=3 queda 1 real y 1 fake por conjunto."""
     fakes, used = [], set()
     for v in sorted((v for v in videos if v.label == 1), key=lambda v: (v.identities[0], v.method)):
         if not used & set(v.identities) and v.method not in {f.method for f in fakes}:
@@ -216,7 +216,7 @@ def assign_identity_groups(videos: List[VideoItem]) -> int:
 
 def split_by_identity(videos: List[VideoItem], ratios: Tuple[float, float, float] = (0.70, 0.15, 0.15),
                       seed: int = 42) -> Dict[str, List[VideoItem]]:
-    """Asigna grupos completos de identidad a train/val/test, estratificando por tipo de grupo (solo reales /..."""
+    """Reparte grupos de identidad completos entre train, val y test, cuidando que haya reales y fakes en cada uno."""
     assert abs(sum(ratios) - 1.0) < 1e-6
     assign_identity_groups(videos)
     groups: Dict[int, List[VideoItem]] = defaultdict(list)
@@ -247,8 +247,8 @@ def check_identity_leakage(splits: Dict[str, List[VideoItem]]) -> Dict[str, int]
     paths = {k: {v.path for v in vs} for k, vs in splits.items()}
     out = {}
     for a, b in (("train", "val"), ("train", "test"), ("val", "test")):
-        out[f"identidades {a}∩{b}"] = len(ids[a] & ids[b])
-        out[f"videos {a}∩{b}"] = len(paths[a] & paths[b])
+        out[f"identidades {a}-{b}"] = len(ids[a] & ids[b])
+        out[f"videos {a}-{b}"] = len(paths[a] & paths[b])
     return out
 
 
@@ -262,14 +262,14 @@ _NOSE_TIP, _CHEEK_L, _CHEEK_R = 1, 234, 454
 
 
 def yaw_index(pts: np.ndarray) -> float:
-    """Índice de giro horizontal de la cabeza en [-1, 1] a partir de landmarks MediaPipe (468, 2): desplazamiento..."""
+    """Giro de la cabeza en [-1, 1]: posición de la nariz respecto al centro de las mejillas (0 = frontal)."""
     xl, xr, xn = float(pts[_CHEEK_L, 0]), float(pts[_CHEEK_R, 0]), float(pts[_NOSE_TIP, 0])
     half = abs(xr - xl) / 2.0
     return float(np.clip((xn - (xl + xr) / 2.0) / max(half, 1e-6), -1.0, 1.0))
 
 
 class FaceAligner:
-    """Reproduce preprocess.py: 468 landmarks -> rotación que nivela los ojos -> recorte cuadrado centrado (x =..."""
+    """Alinea el rostro como preprocess.py: nivela los ojos y recorta un cuadrado centrado de 224x224."""
 
     def __init__(self, output_size: int = 224, margin_ratio: float = 1.35,
                  task_model_path: str = "face_landmarker.task", small_face_fallback: bool = True) -> None:
@@ -367,7 +367,7 @@ class FaceAligner:
         size = int(round(max((y1 - y0) * self.margin, (x1 - x0) * self.margin,
                              float(np.linalg.norm(nr - nl)) * 2.8)))
         # Sin tamaño mínimo: el encuadre es relativo al rostro (misma escala en todos los videos).
-        # El preprocess.py original forzaba size >= 224 px, lo que en planos abiertos dejaba el
+        # (preprocess.py forzaba al menos 224 px y en planos abiertos el rostro quedaba pequeño)
         size = max(size, 16)
         xa, ya = int(round(cx - size / 2.0)), int(round(cy - size / 2.0))
         xb, yb = xa + size, ya + size

@@ -94,7 +94,7 @@ def main() -> None:
         held = np.concatenate([ids["val"], ids["test"]])
         for name, mask in (("todos", np.ones_like(frontal)), ("frontales", frontal)):
             tr = in_split["train"] & mask
-            mu, sd = P[tr].mean(0), P[tr].std(0) + 1e-8  # estadísticos SOLO de train
+            mu, sd = P[tr].mean(0), P[tr].std(0) + 1e-8  # estadísticos solo de train
             clf = LogisticRegression(C=0.1, max_iter=5000, class_weight="balanced", random_state=SEED)
             clf.fit((P[tr] - mu) / sd, labels[fvid[tr]])
             prob = clf.predict_proba((P - mu) / sd)[:, 1]
@@ -115,7 +115,7 @@ def main() -> None:
         E = feats[mode][0]
         a_.boxplot([E[labels[fvid] == 0], E[labels[fvid] == 1]], showfliers=False)
         a_.set_xticks([1, 2], ["Real", "Fake"])
-        a_.set_title(f"Energía del mapa · {mode}")
+        a_.set_title(f"Energía del mapa: {mode}")
         a_.set_ylabel("media de |izq. espejo − der.|")
     fig.tight_layout()
     fig.savefig(os.path.join(a.out, "fig_asim_01_energia_por_clase.png"), dpi=300, bbox_inches="tight")

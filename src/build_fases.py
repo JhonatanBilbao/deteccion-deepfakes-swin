@@ -69,21 +69,21 @@ assert r.returncode == 0, "La verificación de gradientes falló"
     return nb
 
 
-SMOKE_NOTE = ("\n\n> **Modo smoke**: 10 videos por conjunto y 1 época; solo verifica que el flujo funciona. "
+SMOKE_NOTE = ("\n\n> Modo smoke: 10 videos por conjunto y 1 época; solo verifica que el flujo funciona. "
               "Sus métricas no son resultados.") if SMOKE else ""
 
 fase1 = notebook(
-    "Fase 1 · Preprocesamiento FF++ (protocolo oficial)",
+    "Fase 1: Preprocesamiento FF++ (protocolo oficial)",
     """
-Etapa 1 del pipeline para **todos** los videos: muestreo uniforme N=16 → landmarks MediaPipe → alineación al eje
-central → rostro 224×224, más el índice de giro de la cabeza por frame. Partición **oficial** de FaceForensics++
-(720/140/140, sin fugas de identidad); la normalización robusta se ajusta **solo con train**.
+Etapa 1 del pipeline para todos los videos: muestreo uniforme N=16 → landmarks MediaPipe → alineación al eje
+central → rostro 224×224, más el índice de giro de la cabeza por frame. Partición oficial de FaceForensics++
+(720/140/140, sin fugas de identidad); la normalización robusta se ajusta solo con train.
 
 - Train: 16 frames por real y 4 por fake (equilibra las clases 1:4 de FF++); val: 8; test: 16 (decisión por video con N=16).
-- Si el dataset incluye la versión **C40**, se extraen también sus videos de test (mala calidad real).
-- Si se añade **Celeb-DF v2**, se extrae su lista oficial de test (518 videos) para evaluar generalización.
+- Si el dataset incluye la versión C40, se extraen también sus videos de test (mala calidad real).
+- Si se añade Celeb-DF v2, se extrae su lista oficial de test (518 videos) para evaluar generalización.
 
-Esta fase **no usa GPU**. Sus salidas (cachés + `manifest.json`) son la entrada de la fase 2.""" + SMOKE_NOTE,
+Esta fase no usa GPU. Sus salidas (cachés + `manifest.json`) son la entrada de la fase 2.""" + SMOKE_NOTE,
     [("code", '''
 from data import find_dataset_dir
 from experimento import PrepConfig, preprocesar
@@ -107,11 +107,11 @@ for c in manifest["caches"].values():
 ''')], mediapipe=True)
 
 fase2 = notebook(
-    "Fase 2 · Entrenamiento y evaluación — __EXPERIMENTO__ (semilla __SEMILLA__)",
+    "Fase 2: entrenamiento y evaluación de __EXPERIMENTO__ (semilla __SEMILLA__)",
     """
 Un modelo del pipeline híbrido (Swin-T con pesos ImageNet + rama de asimetría con residuos de textura + MLP con
 Focal Loss), entrenado con FF++ C23 (partición oficial) y evaluado en test C23, C23 con degradaciones sintéticas,
-**C40 real** y **Celeb-DF v2** (si se preprocesaron). Guarda las puntuaciones **por video** para la fase 3.""" + SMOKE_NOTE,
+C40 real y Celeb-DF v2 (si se preprocesaron). Guarda las puntuaciones por video para la fase 3.""" + SMOKE_NOTE,
     [("code", '''
 from experimento import TrainSetup, entrenar_y_evaluar
 man = sorted(glob.glob(os.path.join(INPUT_ROOT, "**", "manifest.json"), recursive=True))
@@ -125,11 +125,11 @@ path = entrenar_y_evaluar(st)
 ''')], gradcheck=True, cupy=True)
 
 fase3 = notebook(
-    "Fase 3 · Análisis: AUC con IC 95 %, comparaciones pareadas y figuras",
+    "Fase 3: Análisis: AUC con IC 95 %, comparaciones pareadas y figuras",
     """
 Reúne las puntuaciones por video de todas las sesiones de la fase 2. Reporta para cada experimento y condición el
-AUC por semilla con **IC 95 % por bootstrap de grupos de identidad**, la media ± d.e. entre semillas, las
-**comparaciones pareadas** (mismos videos) y métricas con umbral fijado en validación. Figuras a 300 dpi.""" + SMOKE_NOTE,
+AUC por semilla con IC 95 % por bootstrap de grupos de identidad, la media ± d.e. entre semillas, las
+comparaciones pareadas (mismos videos) y métricas con umbral fijado en validación. Figuras a 300 dpi.""" + SMOKE_NOTE,
     [("code", '''
 from experimento import analizar
 import pandas as pd

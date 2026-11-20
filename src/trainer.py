@@ -88,7 +88,7 @@ class Experiment:
         self.best_state: Optional[List[np.ndarray]] = None
         self.frames_of = {int(v): np.flatnonzero(self.fvid == v) for v in np.unique(self.fvid)}
 
-    # ── preparación del lote ─────────────────────────────────────
+    # Preparación del lote
     def prepare(self, idx: np.ndarray, augment: bool, spec: Optional[Dict] = None, seed: int = 0,
                 cache: Optional[Dict[str, np.ndarray]] = None):
         """Índices de frame -> (rostro normalizado, mapa de asimetría normalizado, máscara lateral)."""
@@ -105,7 +105,7 @@ class Experiment:
             lmask = (np.abs(c["frame_yaw"][idx]) <= self.cfg.yaw_mask).astype(np.float32)
         return self.face_norm(x), self.diff_norm(d), lmask, idx
 
-    # ── entrenamiento ────────────────────────────────────────────
+    # Entrenamiento
     def train_epoch(self, rng: np.random.RandomState) -> float:
         self.model.train()
         tr = [int(v) for v in self.split_videos["train"] if int(v) in self.frames_of]
@@ -139,7 +139,7 @@ class Experiment:
             n += len(b)
         return losses / max(n, 1)
 
-    # ── inferencia ───────────────────────────────────────────────
+    # Inferencia
     def predict_frames(self, frame_idx: np.ndarray, spec: Optional[Dict] = None, seed: int = 1234,
                        cache: Optional[Dict[str, np.ndarray]] = None) -> np.ndarray:
         """P(fake) por frame, en el mismo orden que frame_idx."""
@@ -167,7 +167,7 @@ class Experiment:
         p = self.predict_frames(np.arange(len(fv)), spec, cache=cache)
         return vids, cache["labels"][vids], video_scores(p, fv, vids)
 
-    # ── bucle principal ──────────────────────────────────────────
+    # Bucle principal
     def fit(self, verbose: bool = True) -> List[Dict[str, float]]:
         from sklearn.metrics import roc_auc_score
 
@@ -194,7 +194,7 @@ class Experiment:
                 bad += 1
             if verbose:
                 print(f"[{self.name}] ép {ep:3d} | loss {tl:.4f} | AUC val buena {rec['val_auc_buena']:.3f}"
-                      f" | mala {rec['val_auc_mala']:.3f} | {rec['seg']:.0f}s{'  ✓' if improved else ''}")
+                      f" | mala {rec['val_auc_mala']:.3f} | {rec['seg']:.0f}s{'  *' if improved else ''}")
             if bad >= cfg.patience:
                 if verbose:
                     print(f"[{self.name}] early stopping en la época {ep}")
@@ -205,7 +205,7 @@ class Experiment:
         return self.history
 
     def free_training_state(self) -> None:
-        """Tras entrenar solo hace falta inferencia: libera estados de AdamW (m, v), gradientes, la copia del mejor..."""
+        """Libera lo que solo sirve para entrenar (estado de AdamW, gradientes, activaciones)."""
         self.opt = self.sched = None
         self.best_state = None
         for p in self.model.parameters():

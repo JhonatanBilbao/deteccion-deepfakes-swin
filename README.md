@@ -20,7 +20,7 @@ Lo que cambió respecto al diseño inicial:
 | Mapa de asimetría | resta de píxeles | resta de residuos de textura, cada mitad normalizada por separado | la resta de píxeles respondía a la iluminación y la pose |
 | Detección de rostro | MediaPipe | MediaPipe + detector de respaldo para rostros pequeños | dos videos sin rostro detectado |
 | Alineación | recorte de al menos 224 px | recorte proporcional al rostro | rostros pequeños quedaban descentrados |
-| Entrenamiento | — | aumento de calidad y normalización robusta (mediana/IQR del train) | robustez a baja calidad |
+| Entrenamiento | sin aumento | aumento de calidad y normalización robusta (mediana/IQR del train) | robustez a baja calidad |
 
 ## Estructura
 
@@ -133,21 +133,90 @@ python src/verificar_dataset.py ruta/al/dataset
 
 ## Ejecución en Kaggle
 
-Requiere la CLI de Kaggle con sesión iniciada (`kaggle auth login`).
+Los resultados se obtuvieron en Kaggle, con la cuenta `jhonatanbilbaouscca` y el dataset privado
+`deepfake-ffpp-tesis` (el subconjunto de FF++ descrito en Resultados).
 
-```bash
-export KAGGLE_USERNAME=tu_usuario
-# prueba del flujo completo (10 videos por conjunto, 1 época)
-bash kaggle/ejecutar_ffpp.sh --ffpp-dataset tu_usuario/tu-dataset --smoke
-# protocolo completo: preprocesado (CPU), 6 entrenamientos (GPU T4) y análisis
-bash kaggle/ejecutar_ffpp.sh --ffpp-dataset tu_usuario/tu-dataset
-# con FF++ local, crea el dataset privado y ejecuta todo
-bash kaggle/ejecutar_ffpp.sh --subir-ffpp /ruta/FaceForensics++ --celebdf-dataset tu_usuario/celeb-df
-```
+### Entorno
 
-Modelos entrenados: `robusto_con_aumento` (propuesto, semillas 42, 7 y 123), `base_sin_aumento`,
-`ablacion_solo_swin` y `ablacion_solo_asimetria`. Configuración: hasta 15 épocas con parada temprana
-(paciencia 4), lote 16, AdamW, tasa 1e-4 (1e-5 en el Swin), Focal Loss (alfa 0.5, gamma 2), semilla 42.
+| | |
+|---|---|
+| GPU | 1 NVIDIA Tesla T4 de 16 GB (acelerador `NvidiaTeslaT4`) |
+| Fases sin GPU | CPU de Kaggle, no consumen cuota de GPU |
+| Python | 3.13 (imagen de Kaggle); CuPy en GPU, NumPy en CPU |
+| Internet | activado: instala MediaPipe y CuPy, descarga `face_landmarker.task` y los pesos de Swin-T de Hugging Face |
+| Límites de Kaggle | sesiones de hasta 12 h y una cuota semanal de GPU (unas 30 h; el saldo se ve en la cuenta) |
+| Kernels | privados; cada fase lee la salida de la anterior con `kernel_sources` |
+
+La cuenta de Kaggle debe tener el teléfono verificado; sin eso no se puede activar la GPU ni internet.
+
+### Cómo se ejecutó
+
+El entrenamiento se separó en tres fases para no gastar GPU en lo que no la necesita y para que cada
+modelo tenga su propia sesión (si una falla, las demás no se pierden):
+
+| Fase | Kernel | Hardware | Qué hace | Salida |
+|---|---|---|---|---|
+| 1 | `deepfake-ffpp-fase1-preproceso` | CPU | muestrea 16 fotogramas por video, alinea los rostros, aplica la partición oficial y ajusta la normalización con train | caché de rostros en memoria mapeada (`faces.npy`, `meta.npz`) y estadísticos de normalización |
+| 2 | `deepfake-ffpp-f2-<modelo>-s<semilla>` (6 kernels) | GPU T4 | entrena un modelo y guarda la puntuación de cada video de test en cada condición de calidad | `scores_<modelo>_s<semilla>.csv` |
+| 3 | `deepfake-ffpp-fase3-analisis` | CPU | junta las 6 puntuaciones, calcula AUC con intervalos bootstrap, comparaciones pareadas y figuras | `analisis/tablas/*.csv` y `analisis/figuras/*.png` |
+
+Los 6 kernels de la fase 2 son: el modelo propuesto con las semillas 42, 7 y 123, y el modelo base, solo Swin
+y solo asimetría con la semilla 42. Las fases 1 y 2 tienen un límite de 12 h por kernel y la fase 3 de 2 h.
+Como referencia de tiempos: la ablación de solo asimetría tardó unos 5 minutos, y en una corrida anterior con
+el mismo hardware cada modelo con Swin tardó entre 18 y 20 minutos.
+
+`kaggle/ejecutar_ffpp.sh` hace todo desde la terminal: genera los kernels, los sube con la CLI, revisa su
+estado cada minuto, encadena las fases y al final descarga los resultados en `salida_ffpp/`.
+
+### Cómo usarlo
+
+1. Instalar la CLI de Kaggle en un entorno virtual (en Ubuntu, pip no deja instalar paquetes en el sistema):
+
+   ```bash
+   python3 -m venv ~/.venvs/kaggle
+   ~/.venvs/kaggle/bin/pip install kaggle six
+   echo 'export PATH="$HOME/.venvs/kaggle/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+   ```
+
+2. Iniciar sesión (abre el navegador; la sesión queda guardada en tu usuario, fuera del repositorio):
+
+   ```bash
+   kaggle auth login
+   export KAGGLE_USERNAME=tu_usuario
+   ```
+
+3. Subir FF++ como dataset privado, solo la primera vez (puede tardar horas según la conexión):
+
+   ```bash
+   bash kaggle/ejecutar_ffpp.sh --subir-ffpp /ruta/a/FaceForensics++
+   ```
+
+   Si el dataset ya está en Kaggle, se indica con `--ffpp-dataset tu_usuario/nombre-del-dataset`.
+
+4. Probar el flujo completo con pocos datos (10 videos por conjunto, 1 época, unos 30 minutos):
+
+   ```bash
+   bash kaggle/ejecutar_ffpp.sh --ffpp-dataset tu_usuario/deepfake-ffpp-tesis --smoke
+   ```
+
+5. Ejecutar el protocolo completo:
+
+   ```bash
+   bash kaggle/ejecutar_ffpp.sh --ffpp-dataset tu_usuario/deepfake-ffpp-tesis
+   ```
+
+   Se puede apagar la computadora mientras corre: los kernels siguen en Kaggle. Para retomar sin repetir
+   lo ya hecho se usa `--desde-fase 2` o `--desde-fase 3`.
+
+Otras opciones: `--semillas "42 7 123"`, `--ablaciones-semillas "42"` y `--celebdf-dataset usuario/celeb-df`
+para evaluar también en Celeb-DF v2.
+
+Sin la CLI también se puede hacer desde la web: subir el notebook de la fase en Kaggle (File > Import
+Notebook), agregar el dataset o el kernel anterior como entrada, elegir GPU T4 en Settings > Accelerator,
+activar Internet y ejecutar con Save Version > Save & Run All.
+
+`kaggle/subir_a_kaggle.sh` corre la versión anterior en un solo notebook (`notebooks/deepfake_kaggle.ipynb`),
+que entrena los cuatro modelos seguidos; sirve para pruebas rápidas.
 
 ## Resultados actuales
 

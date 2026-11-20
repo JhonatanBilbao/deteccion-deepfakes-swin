@@ -12,30 +12,30 @@ md = lambda s: cells.append(nbf.v4.new_markdown_cell(s.strip("\n")))
 code = lambda s: cells.append(nbf.v4.new_code_cell(s.strip("\n")))
 
 md(r"""
-# Detección de Deepfakes en Video — Pipeline desde cero (NumPy / CuPy)
+# Detección de Deepfakes en Video: Pipeline desde cero (NumPy / CuPy)
 ### Rama Global (Swin Transformer) + Rama Lateral (CNN de Asimetría Diferencial) + MLP, robusto a imágenes de mala calidad
 
 Este cuaderno sigue el pipeline de la tesis:
 
 | Etapa | Entrada → Salida |
 |---|---|
-| **1. Preprocesamiento por frame** | Video → muestreo uniforme N=16 → landmarks MediaPipe → alineación (eje central) → rostro 224×224 |
-| **2. Dos ramas + fusión** | Rostro (224×224) → Swin Transformer → vector global 768d → proyección 256d · Rostro dividido → residuos de textura por hemicara → \|flip(izq) − der\| (224×112) → CNN 128d → proyección 256d · Concatenación → descriptor híbrido 512d |
-| **3. Clasificación + agregación** | 512d → MLP (Focal Loss) → p_i por frame → promedio de N=16 → decisión del video |
+| 1. Preprocesamiento por frame | Video → muestreo uniforme N=16 → landmarks MediaPipe → alineación (eje central) → rostro 224×224 |
+| 2. Dos ramas + fusión | Rostro (224×224) → Swin Transformer → vector global 768d → proyección 256d: Rostro dividido → residuos de textura por hemicara → \|flip(izq) − der\| (224×112) → CNN 128d → proyección 256d: Concatenación → descriptor híbrido 512d |
+| 3. Clasificación + agregación | 512d → MLP (Focal Loss) → p_i por frame → promedio de N=16 → decisión del video |
 
-**Todo el modelo está implementado desde cero** (forward, backpropagation y optimizador) con NumPy/CuPy, sin PyTorch ni TensorFlow. Los módulos están en la carpeta `code kaggle` y este cuaderno los escribe en `code_kaggle/` para ser autocontenido.
+Todo el modelo está implementado desde cero (forward, backpropagation y optimizador) con NumPy/CuPy, sin PyTorch ni TensorFlow. Los módulos están en la carpeta `code kaggle` y este cuaderno los escribe en `code_kaggle/` para ser autocontenido.
 
-**Robustez a mala calidad.** Se comparan dos modelos idénticos (misma inicialización, mismos datos y mismo orden de lotes):
+Robustez a mala calidad. Se comparan dos modelos idénticos (misma inicialización, mismos datos y mismo orden de lotes):
 - `base_sin_aumento`: entrenado solo con imágenes originales.
 - `robusto_con_aumento`: entrenado con aumento de calidad desde cero (desenfoque gaussiano, ruido gaussiano, reducción de resolución, brillo/contraste) y normalización robusta (mediana / IQR de train, con recorte).
 
-Ambos se evalúan en test con calidad **buena, regular, mala y muy mala**, con degradaciones aisladas y con compresión JPEG (no vista en entrenamiento).
+Ambos se evalúan en test con calidad buena, regular, mala y muy mala, con degradaciones aisladas y con compresión JPEG (no vista en entrenamiento).
 
-**Modos de ejecución** (celda de configuración):
-- `quick`: prueba rápida con un subconjunto pequeño; sirve para verificar que todo el pipeline funciona. **Sus métricas no son resultados de la tesis.**
+Modos de ejecución (celda de configuración):
+- `quick`: prueba rápida con un subconjunto pequeño; sirve para verificar que todo el pipeline funciona. Sus métricas no son resultados de la tesis.
 - `full`: entrenamiento completo (se activa por defecto en Kaggle).
 
-**Para correr en Kaggle:** Settings → Accelerator **GPU T4/P100**, **Internet ON** (instala MediaPipe/CuPy y descarga el modelo de landmarks), y añadir el dataset con la estructura `real/*.mp4` y `fake/*.mp4`. Luego *Run All*.
+Para correr en Kaggle: Settings → Accelerator GPU T4/P100, Internet ON (instala MediaPipe/CuPy y descarga el modelo de landmarks), y añadir el dataset con la estructura `real/*.mp4` y `fake/*.mp4`. Luego *Run All*.
 """)
 
 code(r"""
@@ -131,13 +131,13 @@ md(r"""
 | Módulo | Contenido |
 |---|---|
 | `backend.py` | CuPy (GPU) o NumPy (CPU), semillas |
-| `layers.py` | Linear, ReLU, GELU, Dropout, LayerNorm, BatchNorm2d, Conv2d (im2col), MaxPool2d, GlobalAvgPool2d — forward y backward manuales |
-| `mlp.py` · `cnn.py` · `swin.py` | Clasificador MLP, rama lateral CNN, rama global Swin Transformer (patch embedding 4×4, atención por ventanas W-MSA y desplazadas SW-MSA con máscara, sesgo de posición relativa, patch merging, LayerNorm) |
-| `losses.py` · `optim.py` | Focal Loss con gradiente analítico · AdamW, SGD, recorte de gradiente, coseno |
+| `layers.py` | Linear, ReLU, GELU, Dropout, LayerNorm, BatchNorm2d, Conv2d (im2col), MaxPool2d, GlobalAvgPool2d: forward y backward manuales |
+| `mlp.py`: `cnn.py`: `swin.py` | Clasificador MLP, rama lateral CNN, rama global Swin Transformer (patch embedding 4×4, atención por ventanas W-MSA y desplazadas SW-MSA con máscara, sesgo de posición relativa, patch merging, LayerNorm) |
+| `losses.py`: `optim.py` | Focal Loss con gradiente analítico: AdamW, SGD, recorte de gradiente, coseno |
 | `detector.py` | Modelo de dos ramas, branch dropout, fusión 512d, agregación temporal |
 | `augment.py` | Desenfoque, ruido, baja resolución, JPEG (solo test), mapa diferencial, normalización robusta |
 | `data.py` | Listado de videos, partición por identidad, MediaPipe, muestreo N=16, caché |
-| `metrics.py` · `trainer.py` | AUC, F1, precisión, recall, matriz de confusión, EER, figuras a 300 dpi · bucle de entrenamiento |
+| `metrics.py`: `trainer.py` | AUC, F1, precisión, recall, matriz de confusión, EER, figuras a 300 dpi: bucle de entrenamiento |
 | `gradcheck.py` | Verificación numérica de todas las derivadas |
 """)
 
@@ -181,9 +181,9 @@ print("Backend:", "CuPy (GPU)" if bk.ON_GPU else "NumPy (CPU)", "| dtype:", bk.D
 """)
 
 md(r"""
-## Etapa 1 · Preprocesamiento y extracción por frame
+## Etapa 1: Preprocesamiento y extracción por frame
 ### 1.1 Dataset y partición sin fuga por identidad
-En FaceForensics++, `fake/<Método>_TTT_SSS.mp4` se construye a partir del video real `TTT` y la cara de `SSS`. Todos los videos que comparten una identidad forman un **grupo**, y cada grupo va completo a un solo conjunto. Así ninguna persona, escena o fondo aparece en train y en test a la vez.
+En FaceForensics++, `fake/<Método>_TTT_SSS.mp4` se construye a partir del video real `TTT` y la cara de `SSS`. Todos los videos que comparten una identidad forman un grupo, y cada grupo va completo a un solo conjunto. Así ninguna persona, escena o fondo aparece en train y en test a la vez.
 """)
 
 code(r"""
@@ -211,7 +211,7 @@ if PROTOCOL == "identidad":
     splits = split_by_identity(videos, CFG["split_ratios"], SEED)
 print("Partición:", PROTOCOL)
 leak = check_identity_leakage(splits)
-assert all(v == 0 for v in leak.values()), f"FUGA DETECTADA: {leak}"
+assert all(v == 0 for v in leak.values()), f"fuga de datos entre conjuntos: {leak}"
 print("Verificación de fuga (todo debe ser 0):", leak)
 
 rows = []
@@ -276,12 +276,12 @@ fig, ax = plt.subplots(2, 8, figsize=(16, 4.4))
 for a, i in zip(ax.ravel(), sel):
     a.imshow(cache["faces"][i]); a.set_title(f"frame {cache['frame_index'][i]}", fontsize=8)
 for a in ax.ravel(): a.axis("off")
-fig.suptitle(f"Muestreo uniforme N={CFG['n_frames']} y rostros normalizados — {videos[0].video_id}")
+fig.suptitle(f"Muestreo uniforme N={CFG['n_frames']} y rostros normalizados: {videos[0].video_id}")
 save_fig(fig, "figuras/fig02_muestreo_uniforme_16_frames.png"); plt.show()
 """)
 
 md(r"""
-### 1.3 Normalización robusta (estadísticos SOLO de train)
+### 1.3 Normalización robusta (estadísticos solo de train)
 $z = \mathrm{clip}\big((x - \mathrm{mediana}) / (\mathrm{IQR}/1.349),\ \pm 5\big)$ por canal, para el rostro y para el mapa diferencial. La mediana y el IQR no se desplazan con píxeles saturados o ruido fuerte, y el recorte acota las entradas cuando la imagen está degradada. Se calcula solo con frames de train.
 """)
 
@@ -306,15 +306,15 @@ json.dump({"rostro": face_norm.to_dict(), "mapa_diferencial": diff_norm.to_dict(
 
 md(r"""
 ### 1.4 Aumento de calidad (entrenamiento) y niveles de calidad (evaluación)
-- **Entrenamiento (`robusto_con_aumento`)**, por imagen y al azar: reducción de resolución ×0.25–0.9 (p=0.5), desenfoque σ=0.4–2.2 (p=0.5), ruido σ=1–15/255 (p=0.5), brillo/contraste (p=0.3). No se usa flip horizontal porque invertiría las hemicaras.
-- **Evaluación**, degradación fija y reproducible: `regular`, `mala` y `muy_mala` combinan las tres degradaciones; además hay degradaciones aisladas y JPEG calidad 30, que el modelo nunca vio al entrenar.
+- Entrenamiento (`robusto_con_aumento`), por imagen y al azar: reducción de resolución ×0.25–0.9 (p=0.5), desenfoque σ=0.4–2.2 (p=0.5), ruido σ=1–15/255 (p=0.5), brillo/contraste (p=0.3). No se usa flip horizontal porque invertiría las hemicaras.
+- Evaluación, degradación fija y reproducible: `regular`, `mala` y `muy_mala` combinan las tres degradaciones; además hay degradaciones aisladas y JPEG calidad 30, que el modelo nunca vio al entrenar.
 
-El mapa diferencial se recalcula **después** de degradar el rostro.
+El mapa diferencial se recalcula después de degradar el rostro.
 """)
 
 code(r"""
 conds = {**QUALITY_LEVELS, **ISOLATED_DEGRADATIONS}
-print(pd.DataFrame(conds).T.fillna("—").to_string())
+print(pd.DataFrame(conds).T.fillna("-").to_string())
 x0 = bk.asarray(face0[None].astype(np.float32)).transpose(0, 3, 1, 2) / 255.0
 fig, ax = plt.subplots(2, len(conds), figsize=(2.3 * len(conds), 5.2))
 stats = []
@@ -342,8 +342,8 @@ save_fig(fig, "figuras/fig04_ejemplos_aumento.png"); plt.show()
 """)
 
 md(r"""
-## Etapa 2 · Extracción en dos ramas y fusión balanceada
-Verificación de dimensiones con un lote real: rostro → Swin → **768d** → **256d**; mapa diferencial → CNN → **128d** → **256d**; concatenación → **512d** → MLP → **2 logits**.
+## Etapa 2: Extracción en dos ramas y fusión balanceada
+Verificación de dimensiones con un lote real: rostro → Swin → 768d → 256d; mapa diferencial → CNN → 128d → 256d; concatenación → 512d → MLP → 2 logits.
 """)
 
 code(r"""
@@ -371,7 +371,7 @@ def make_model(branches: str = "ambas") -> DeepfakeDetectorScratch:
     return DeepfakeDetectorScratch(swin, CNNBranch(**CFG["cnn"]), MLPClassifier(**CFG["mlp"]),
                                    drop_branch=CFG["drop_branch"], branches=branches)
 
-print("Pesos ImageNet del Swin:", "cargados" if WEIGHTS_OK else "NO (inicialización aleatoria)")
+print("Pesos ImageNet del Swin:", "cargados" if WEIGHTS_OK else "no (inicialización aleatoria)")
 
 probe = make_model().eval()
 idx = np.flatnonzero(np.isin(cache["frame_video"], split_videos["train"]))[:4]
@@ -381,8 +381,8 @@ g768 = probe.swin.forward_features(face_in); g256 = probe.swin(face_in)
 lat256 = probe.cnn(diff_in)
 fused = xp.concatenate([g256, lat256], axis=1); logits = probe.mlp(fused)
 shapes = [("Rostro de entrada", face_in.shape), ("Mapa diferencial", diff_in.shape),
-          ("Swin · vector global", g768.shape), ("Swin · proyección", g256.shape),
-          ("CNN · proyección", lat256.shape), ("Descriptor híbrido", fused.shape), ("Logits MLP", logits.shape)]
+          ("Swin: vector global", g768.shape), ("Swin: proyección", g256.shape),
+          ("CNN: proyección", lat256.shape), ("Descriptor híbrido", fused.shape), ("Logits MLP", logits.shape)]
 for n, s in shapes: print(f"  {n:22s} {tuple(s)}")
 assert g768.shape[1] == 768 and g256.shape[1] == 256 and lat256.shape[1] == 256 and fused.shape[1] == 512 and logits.shape[1] == 2
 print(f"Parámetros → Swin: {probe.swin.n_params():,} | CNN: {probe.cnn.n_params():,} | MLP: {probe.mlp.n_params():,} | total: {probe.n_params():,}")
@@ -391,7 +391,7 @@ probe.release(); del probe
 
 md(r"""
 ## Entrenamiento comparativo: línea base vs. robusto, más ablaciones de ramas
-Todos los modelos parten de la **misma inicialización** (seed=42; Swin con pesos ImageNet-1k) y ven **los mismos frames en el mismo orden**. `base_sin_aumento` y `robusto_con_aumento` difieren solo en el aumento de calidad; las ablaciones `solo_asimetria` y `solo_swin` (con aumento) miden el aporte de cada rama frente a la fusión. El backbone preentrenado usa 0.1× la tasa de aprendizaje. AdamW, coseno, Focal Loss (α=0.75, γ=2), recorte de gradiente 5.0 y early stopping por AUC de validación con calidad buena. Se registra también el AUC de validación con calidad mala.
+Todos los modelos parten de la misma inicialización (seed=42; Swin con pesos ImageNet-1k) y ven los mismos frames en el mismo orden. `base_sin_aumento` y `robusto_con_aumento` difieren solo en el aumento de calidad; las ablaciones `solo_asimetria` y `solo_swin` (con aumento) miden el aporte de cada rama frente a la fusión. El backbone preentrenado usa 0.1× la tasa de aprendizaje. AdamW, coseno, Focal Loss (α=0.75, γ=2), recorte de gradiente 5.0 y early stopping por AUC de validación con calidad buena. Se registra también el AUC de validación con calidad mala.
 """)
 
 code(r"""
@@ -413,8 +413,8 @@ plot_history({k: e.history for k, e in experiments.items()}, "figuras/fig05_curv
 """)
 
 md(r"""
-## Etapa 3 · Clasificación, agregación temporal y evaluación por calidad
-Cada video se puntúa con el **promedio de p(deepfake) de sus N frames**. El umbral se elige en **validación con calidad buena** (índice de Youden) y se aplica sin cambios a todas las condiciones de test.
+## Etapa 3: Clasificación, agregación temporal y evaluación por calidad
+Cada video se puntúa con el promedio de p(deepfake) de sus N frames. El umbral se elige en validación con calidad buena (índice de Youden) y se aplica sin cambios a todas las condiciones de test.
 """)
 
 code(r"""
@@ -426,8 +426,8 @@ for name, exp in experiments.items():
     frac_fake_val = float((sv >= thr).mean())
     aprendio = bool(val_auc >= CFG["min_val_auc"]) and 0.0 < frac_fake_val < 1.0
     if not aprendio:
-        print(f"⚠ {name}: AUC de validación = {val_auc:.3f} (umbral mínimo {CFG['min_val_auc']}) "
-              f"y {frac_fake_val:.0%} de val clasificado como fake → NO APRENDIÓ. "
+        print(f"Aviso: {name}: AUC de validación = {val_auc:.3f} (umbral mínimo {CFG['min_val_auc']}) "
+              f"y {frac_fake_val:.0%} de val clasificado como fake -> no aprendió. "
               f"Sus F1/precisión/recall de test no son interpretables; usar solo el AUC.")
     for cond, spec in conds.items():
         y, s = exp.video_predictions("test", spec)
@@ -465,7 +465,7 @@ for met in ("auc", "f1"):
 code(r"""
 for name in experiments:
     plot_roc({c: preds[(name, c)] for c in ("buena", "regular", "mala", "muy_mala", "jpeg_q30_no_visto")},
-             f"figuras/fig07_roc_{name}.png", f"ROC test (video) — {name}"); plt.show()
+             f"figuras/fig07_roc_{name}.png", f"ROC test (video): {name}"); plt.show()
 
 cms = {}
 for name in experiments:
@@ -533,7 +533,7 @@ if SMOKE:
                     "horas_full_50ep_todos": len(CFG["experiments"]) * 50 * per_epoch / 3600, "backend": "gpu" if bk.ON_GPU else "cpu"}
     json.dump(smoke_report, open("resultados/smoke_test.json", "w"), indent=2)
     assert all(checks.values()), "El smoke test encontró fallas (ver arriba)"
-    print("\nSMOKE TEST SUPERADO ✔")
+    print("\nSmoke test superado")
 """)
 
 code(r"""
@@ -554,12 +554,12 @@ for d in ("figuras", "resultados", "checkpoints"):
 md(r"""
 ## Lectura de resultados y siguiente paso
 
-- **En modos `smoke`/`quick`** el test tiene muy pocos videos; las métricas solo prueban que el pipeline funciona de punta a punta y **no deben reportarse como resultados**.
-- **Primero revisar la columna `aprendio`**: un modelo con AUC de validación < 0.55 no aprendió y sus F1/precisión/recall de test no son interpretables (el umbral de Youden se vuelve degenerado).
-- **Hipótesis de robustez:** se sostiene si `robusto_con_aumento` pierde claramente menos AUC/F1 que `base_sin_aumento` de *buena* a *mala*/*muy mala* sin perder rendimiento en *buena* (`caida_por_calidad.csv`, `fig06`). JPEG mide si la robustez generaliza a una degradación no vista.
-- **Aporte de la asimetría:** comparar `robusto_con_aumento` (fusión) con `ablacion_solo_swin` y `ablacion_solo_asimetria`. La rama lateral aporta si la fusión supera a `solo_swin`, sobre todo en calidad mala.
-- **Variabilidad:** con ~37 videos de test el AUC tiene un error estándar ≈ 0.08–0.10; las diferencias pequeñas entre modelos no son concluyentes sin repetir con varias semillas o más videos.
-- **Limitación a declarar:** las degradaciones de test son de la misma familia que el aumento de entrenamiento, salvo JPEG; conviene complementar con videos FF++ c40 reales si están disponibles.
+- En modos `smoke`/`quick` el test tiene muy pocos videos; las métricas solo prueban que el pipeline funciona de punta a punta y no deben reportarse como resultados.
+- Primero revisar la columna `aprendio`: un modelo con AUC de validación < 0.55 no aprendió y sus F1/precisión/recall de test no son interpretables (el umbral de Youden se vuelve degenerado).
+- Hipótesis de robustez: se sostiene si `robusto_con_aumento` pierde claramente menos AUC/F1 que `base_sin_aumento` de *buena* a *mala*/*muy mala* sin perder rendimiento en *buena* (`caida_por_calidad.csv`, `fig06`). JPEG mide si la robustez generaliza a una degradación no vista.
+- Aporte de la asimetría: comparar `robusto_con_aumento` (fusión) con `ablacion_solo_swin` y `ablacion_solo_asimetria`. La rama lateral aporta si la fusión supera a `solo_swin`, sobre todo en calidad mala.
+- Variabilidad: con ~37 videos de test el AUC tiene un error estándar ≈ 0.08–0.10; las diferencias pequeñas entre modelos no son concluyentes sin repetir con varias semillas o más videos.
+- Limitación a declarar: las degradaciones de test son de la misma familia que el aumento de entrenamiento, salvo JPEG; conviene complementar con videos FF++ c40 reales si están disponibles.
 """)
 
 for c in cells:
