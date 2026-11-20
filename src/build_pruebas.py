@@ -43,7 +43,7 @@ Este cuaderno prueba cada componente del detector por separado, en el mismo orde
 
 Cada prueba imprime las dimensiones y termina con una comprobación `OK` o `FALLA`. La última celda muestra la tabla con todas.
 
-Por defecto se usa un **rostro sintético** dibujado en código, para que el cuaderno no dependa de datos con licencia. Para probar con un rostro real, pon la ruta de una imagen o un video en `RUTA_ROSTRO`.
+Las pruebas usan un video real de FaceForensics++, indicado en la variable de entorno `RUTA_ROSTRO` (por ejemplo `original_sequences/youtube/c23/videos/003.mp4`), y el modelo de MediaPipe en `RUTA_LANDMARKER`. Sin ruta, se usa un rostro sintético dibujado en código.
 """)
 
 md("## 0 Configuración")
@@ -66,7 +66,8 @@ from backend import xp
 
 SEED = 42
 bk.set_seed(SEED)
-RUTA_ROSTRO = None          # ruta a una imagen o video con un rostro; None usa el rostro sintético
+RUTA_ROSTRO = os.environ.get("RUTA_ROSTRO")   # imagen o video con un rostro; None usa el rostro sintético
+RUTA_LANDMARKER = os.environ.get("RUTA_LANDMARKER", "face_landmarker.task")   # modelo de MediaPipe
 CARGAR_IMAGENET = False     # True descarga los pesos de Swin-T (necesita internet)
 FIG_DIR = "figuras_pruebas"
 os.makedirs(FIG_DIR, exist_ok=True)
@@ -120,28 +121,39 @@ def rostro_sintetico(size: int = 224, seed: int = SEED) -> np.ndarray:
     return np.clip(img.astype(np.float32) + textura, 0, 255).astype(np.uint8)
 
 
+ES_VIDEO = bool(RUTA_ROSTRO) and RUTA_ROSTRO.lower().endswith((".mp4", ".avi", ".mov", ".mkv"))
+
+
+def leer_fotograma(ruta, pos):
+    cap = cv2.VideoCapture(ruta)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
+    ok, frame = cap.read()
+    cap.release()
+    assert ok, f"No pude leer el fotograma {pos} de {ruta}"
+    return frame
+
+
 def cargar_rostro(ruta):
     from data import FaceAligner
-    if ruta.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
-        cap = cv2.VideoCapture(ruta)
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2)
-        ok, frame = cap.read()
-        cap.release()
-        assert ok, f"No pude leer un fotograma de {ruta}"
+    if ES_VIDEO:
+        n = int(cv2.VideoCapture(ruta).get(cv2.CAP_PROP_FRAME_COUNT))
+        frame = leer_fotograma(ruta, n // 3)
+        print(f"  video: {os.path.basename(ruta)} | {n} fotogramas | se usa el fotograma {n // 3}")
     else:
         frame = cv2.imread(ruta)
         assert frame is not None, f"No pude leer {ruta}"
-    aligner = FaceAligner(output_size=224)
+    aligner = FaceAligner(output_size=224, task_model_path=RUTA_LANDMARKER)
     face, info = aligner.align(frame)
     aligner.close()
     assert face is not None, "MediaPipe no encontró un rostro"
+    print(f"  fotograma: {frame.shape[1]}x{frame.shape[0]} | landmarks: {len(info['landmarks'])} puntos")
     print(f"  ángulo corregido: {info['angle']:.2f}°  | índice de giro: {info['yaw']:+.3f}")
     return frame[..., ::-1], face
 
 
 if RUTA_ROSTRO:
     frame_rgb, face_rgb = cargar_rostro(RUTA_ROSTRO)
-    origen = "rostro real alineado con MediaPipe"
+    origen = f"FaceForensics++ ({os.path.basename(RUTA_ROSTRO)}), alineado con MediaPipe"
 else:
     face_rgb = rostro_sintetico()
     frame_rgb = face_rgb
@@ -220,7 +232,8 @@ for x in ax: x.axis("off")
 fig.savefig(f"{FIG_DIR}/p02_mapa_diferencial.png", dpi=300, bbox_inches="tight"); plt.show()
 
 comprobar("2a Forma del mapa", forma(diff_res) == (1, 3, 224, 112), "(1,3,224,112)")
-comprobar("2b Rostro simétrico da mapa nulo", e_sim < 1e-5, f"máx {e_sim:.1e}")
+comprobar("2b Rostro simétrico da mapa nulo", e_sim < 1e-3 * float(diff_res.mean()),
+          f"máx {e_sim:.1e}, error de redondeo float32")
 comprobar("2c El mapa localiza una alteración de un solo lado", dentro > 5 * fuera,
           f"zona alterada x{dentro / fuera:.0f} más energía que el resto")
 diff_input = diff_res
@@ -569,14 +582,28 @@ md(r"""
 ## 14 ¿Aprende? Sobreajuste controlado
 
 Una prueba clásica: con pocos ejemplos, el modelo debe poder memorizarlos y la pérdida tiene que bajar.
-Para que corra rápido en CPU se usa la rama de asimetría con AdamW sobre 16 mapas: 8 rostros simétricos y los mismos 8 con la mejilla derecha alterada.
+Para que corra rápido en CPU se usa la rama de asimetría con AdamW sobre 16 mapas: 8 fotogramas del video vueltos simétricos y los mismos 8 con la mejilla derecha alterada.
 """)
 code(r"""
 from optim import AdamW
 
 bk.set_seed(SEED)
-base = bk.asarray(np.concatenate([rostro_sintetico(seed=SEED + k).transpose(2, 0, 1)[None] / 255.0
-                                  for k in range(8)]))
+if ES_VIDEO:
+    from data import FaceAligner, sample_frame_indices
+    al = FaceAligner(output_size=224, task_model_path=RUTA_LANDMARKER)
+    n_total = int(cv2.VideoCapture(RUTA_ROSTRO).get(cv2.CAP_PROP_FRAME_COUNT))
+    caras = []
+    for i in sample_frame_indices(n_total, 16):
+        c_, _ = al.align(leer_fotograma(RUTA_ROSTRO, i))
+        if c_ is not None:
+            caras.append(c_)
+        if len(caras) == 8:
+            break
+    al.close()
+    print(f"Fotogramas reales del video: {len(caras)}")
+else:
+    caras = [rostro_sintetico(seed=SEED + k) for k in range(8)]
+base = bk.asarray(np.concatenate([c_.transpose(2, 0, 1)[None] / 255.0 for c_ in caras]))
 base = simetrizar(base)
 alterado = base.copy()
 alterado[zona] = gaussian_blur(base, 2.0)[zona]

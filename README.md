@@ -11,7 +11,8 @@ sin PyTorch ni TensorFlow. En GPU se usa CuPy y en CPU NumPy, con el mismo códi
 
 ![Pipeline](docs/pipeline.png)
 
-Los recuadros en ámbar marcan lo que cambió respecto al diseño inicial:
+El rostro del diagrama es un fotograma del video 003 de FaceForensics++ (Rössler et al., 2019).
+Lo que cambió respecto al diseño inicial:
 
 | Paso | Diseño inicial | Implementación actual | Motivo |
 |---|---|---|---|
@@ -42,7 +43,7 @@ src/                     código fuente
   diagnostico_asimetria.py  análisis del mapa de asimetría
   verificar_swin_timm.py comparación con el Swin-T de timm
   build_notebook.py, build_fases.py, build_pruebas.py  generan los notebooks
-  dibujar_pipeline.py    dibuja docs/pipeline.png
+  dibujar_pipeline.py    dibuja docs/pipeline.png a partir de un video
 notebooks/               notebook principal, smoke test y pruebas por partes
 kaggle/                  scripts para subir y ejecutar en Kaggle + notebooks de las fases
 docs/                    diagrama, tablas, figuras de resultados y de las pruebas
@@ -90,16 +91,20 @@ termina con una comprobación `OK` o `FALLA`:
 | 17 | Métricas | AUC, F1, precisión, recall, EER, matriz de confusión e intervalo bootstrap |
 | 18 | Gradientes | backpropagation manual contra diferencias finitas (32 verificaciones) |
 
-El notebook guardado ya tiene las salidas: **20 de 20 pruebas superadas** en CPU, en unos 90 segundos.
+El notebook guardado ya tiene las salidas: **20 de 20 pruebas superadas** en CPU, en unos 2 minutos.
 Las figuras están en [`docs/pruebas/`](docs/pruebas/).
 
-Por defecto usa un rostro sintético dibujado en código, para no depender de datos con licencia.
-Para usar un rostro real, pon la ruta de una imagen o un video en `RUTA_ROSTRO`; con `CARGAR_IMAGENET = True`
-la sección 8 carga los pesos preentrenados de Swin-T.
+Las salidas guardadas usan el video original 003 de FaceForensics++ (calidad c40): MediaPipe alinea un
+fotograma real y ese rostro recorre todo el pipeline; la prueba de aprendizaje usa 8 fotogramas del mismo video.
+Para repetirlo se indican el video y el modelo de MediaPipe con dos variables de entorno. Sin ellas, el notebook
+usa un rostro sintético dibujado en código. Con `CARGAR_IMAGENET = True` la sección 8 carga los pesos de Swin-T.
 
 ```bash
 pip install jupyter
-cd notebooks && DF_BACKEND=numpy jupyter notebook pruebas_por_partes.ipynb
+cd notebooks
+RUTA_ROSTRO=/ruta/a/original_sequences/youtube/c40/videos/003.mp4 \
+RUTA_LANDMARKER=/ruta/a/face_landmarker.task \
+DF_BACKEND=numpy jupyter notebook pruebas_por_partes.ipynb
 ```
 
 En Kaggle basta con una celda inicial `!git clone https://github.com/JhonatanBilbao/deteccion-deepfakes-swin`

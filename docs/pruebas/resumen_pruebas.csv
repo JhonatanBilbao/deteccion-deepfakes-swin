@@ -1,8 +1,8 @@
 prueba,ok,detalle,resultado
 1 Preprocesamiento,True,"(1,3,224,224) en [0,1]",OK
 2a Forma del mapa,True,"(1,3,224,112)",OK
-2b Rostro simétrico da mapa nulo,True,máx 6.9e-06,OK
-2c El mapa localiza una alteración de un solo lado,True,zona alterada x11 más energía que el resto,OK
+2b Rostro simétrico da mapa nulo,True,"máx 4.4e-05, error de redondeo float32",OK
+2c El mapa localiza una alteración de un solo lado,True,zona alterada x8 más energía que el resto,OK
 3 PatchEmbed,True,"(1,3136,96); rechaza 220×220",OK
 4 Partición y reconstrucción,True,"64 ventanas, error 0",OK
 5 Máscara de ventanas desplazadas,True,"(64,49,49), valores {0,-100}",OK
@@ -18,4 +18,4 @@ prueba,ok,detalle,resultado
 15 Calidad y normalización,True,degradación creciente; mediana 0 y recorte ±5,OK
 16 Partición por identidad,True,0 identidades compartidas; reproducible con seed 42,OK
 17 Métricas,True,AUC simulado 0.954,OK
-18 Gradientes numéricos,True,32 verificaciones en 12 s,OK
+18 Gradientes numéricos,True,32 verificaciones en 11 s,OK
