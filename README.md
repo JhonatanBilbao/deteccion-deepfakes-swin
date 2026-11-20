@@ -42,6 +42,7 @@ src/                     código fuente
   diagnostico_asimetria.py  análisis del mapa de asimetría
   verificar_swin_timm.py comparación con el Swin-T de timm
   build_notebook.py, build_fases.py, build_pruebas.py  generan los notebooks
+  dibujar_pipeline.py    dibuja docs/pipeline.png
 notebooks/               notebook principal, smoke test y pruebas por partes
 kaggle/                  scripts para subir y ejecutar en Kaggle + notebooks de las fases
 docs/                    diagrama, tablas, figuras de resultados y de las pruebas
