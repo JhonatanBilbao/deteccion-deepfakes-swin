@@ -25,29 +25,117 @@ Lo que cambió respecto al diseño inicial:
 ## Estructura
 
 ```
-src/                     código fuente
-  swin.py                Swin-T (atención por ventanas, ventanas desplazadas, patch merging)
-  cnn.py, mlp.py         rama lateral y clasificador
-  detector.py            ensamblado de las dos ramas y la fusión
-  layers.py              capas con forward/backward (Linear, Conv2d, LayerNorm, BatchNorm, ...)
-  losses.py, optim.py    Focal Loss, AdamW, tasa coseno
-  pretrained.py          carga de pesos ImageNet (safetensors) sin PyTorch
-  augment.py             degradaciones, aumento de datos, normalización, mapa de asimetría
-  data.py                videos, MediaPipe, alineación, cachés, particiones
-  ff_splits.py           partición oficial de FaceForensics++
-  trainer.py             entrenamiento y evaluación
-  metrics.py             AUC, F1, precisión, recall, EER, intervalos bootstrap
-  experimento.py         protocolo en tres fases (preprocesar, entrenar, analizar)
-  gradcheck.py           verificación numérica de los gradientes
-  verificar_dataset.py   auditoría del dataset
-  diagnostico_asimetria.py  análisis del mapa de asimetría
-  verificar_swin_timm.py comparación con el Swin-T de timm
-  build_notebook.py, build_fases.py, build_pruebas.py  generan los notebooks
-  dibujar_pipeline.py    dibuja docs/pipeline.png a partir de un video
-notebooks/               notebook principal, smoke test y pruebas por partes
-kaggle/                  scripts para subir y ejecutar en Kaggle + notebooks de las fases
-docs/                    diagrama, tablas, figuras de resultados y de las pruebas
+deteccion-deepfakes-swin/
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── src/          código del detector, del entrenamiento y de los análisis
+├── notebooks/    notebooks para correr el pipeline y las pruebas
+├── kaggle/       scripts y notebooks para ejecutar en Kaggle
+└── docs/         diagrama, resultados, diagnóstico y figuras de las pruebas
 ```
+
+### Archivos de la raíz
+
+| Archivo | Qué hace |
+|---|---|
+| `README.md` | este documento |
+| `requirements.txt` | librerías de Python necesarias (`pip install -r requirements.txt`) |
+| `.gitignore` | evita subir videos, rostros extraídos, pesos y salidas de entrenamiento (FF++ no se puede redistribuir) |
+
+### `src/`: código fuente
+
+Modelo, implementado con NumPy/CuPy:
+
+| Archivo | Qué hace |
+|---|---|
+| `backend.py` | elige CuPy si hay GPU o NumPy si no, fija las semillas (42) y la precisión (float32) |
+| `layers.py` | capas con forward y backward escritos a mano: Linear, ReLU, GELU, Dropout, LayerNorm, BatchNorm2d, Conv2d, MaxPool2d, promedio global y softmax |
+| `swin.py` | Swin Transformer Tiny: PatchEmbed, partición en ventanas, Window Attention con sesgo de posición relativa, ventanas desplazadas con su máscara, Patch Merging y la proyección 768 → 256 |
+| `cnn.py` | CNN de la rama lateral: 3 bloques convolucionales (32, 64, 128 canales) y proyección a 256 |
+| `mlp.py` | clasificador final: 512 → 256 → 2 con ReLU y Dropout |
+| `detector.py` | une las dos ramas: concatena los vectores (512), aplica Branch Dropout, clasifica y promedia los 16 fotogramas de un video; también permite apagar una rama para las ablaciones |
+| `losses.py` | Focal Loss con su gradiente |
+| `optim.py` | optimizadores SGD y AdamW, recorte del gradiente y tasa de aprendizaje coseno |
+| `pretrained.py` | descarga los pesos ImageNet de Swin-T desde Hugging Face, los lee (formato safetensors, sin PyTorch) y los carga en `swin.py` |
+
+Datos y preprocesamiento:
+
+| Archivo | Qué hace |
+|---|---|
+| `data.py` | lista los videos, agrupa por identidad, hace la partición sin fugas, muestrea 16 fotogramas, detecta y alinea el rostro con MediaPipe (con respaldo Haar), calcula el índice de giro y guarda la caché de rostros |
+| `ff_splits.py` | lista oficial de pares de videos de FF++ para train, val y test (720/140/140) |
+| `augment.py` | mapa de asimetría (por píxeles o por residuos de textura), degradaciones de calidad, aumento de datos y normalización robusta |
+
+Entrenamiento y evaluación:
+
+| Archivo | Qué hace |
+|---|---|
+| `trainer.py` | bucle de entrenamiento: arma los lotes, aplica aumento y normalización, entrena con AdamW, valida por video, hace parada temprana y guarda el mejor modelo |
+| `metrics.py` | AUC, F1, precisión, recall, EER, matriz de confusión, umbral de Youden, intervalos de confianza por bootstrap y comparaciones pareadas; también las figuras (300 dpi) |
+| `experimento.py` | el protocolo completo en tres fases: preprocesar, entrenar y evaluar un modelo, y analizar todos los resultados juntos |
+
+Verificación y diagnóstico:
+
+| Archivo | Qué hace |
+|---|---|
+| `gradcheck.py` | compara cada gradiente escrito a mano con diferencias finitas (32 verificaciones) y revisa las dimensiones con los tamaños reales |
+| `verificar_swin_timm.py` | comprueba que `swin.py` da la misma salida que el Swin-T de la librería timm con los mismos pesos (necesita PyTorch y timm) |
+| `verificar_dataset.py` | revisa el dataset: formato de los videos, fotogramas, duplicados, fugas entre conjuntos y detección de rostros |
+| `diagnostico_asimetria.py` | analiza qué mide el mapa de asimetría (relación con el giro y el brillo, y una sonda lineal) sin entrenar redes |
+
+Generadores:
+
+| Archivo | Qué hace |
+|---|---|
+| `build_notebook.py` | genera `notebooks/deepfake_kaggle.ipynb` y `notebooks/smoke_test_kaggle.ipynb` a partir de los módulos |
+| `build_fases.py` | genera los notebooks de las tres fases de Kaggle (`kaggle/notebooks_ffpp*`) |
+| `build_pruebas.py` | genera `notebooks/pruebas_por_partes.ipynb` |
+| `dibujar_pipeline.py` | dibuja `docs/pipeline.png` a partir de un video |
+
+Los notebooks de Kaggle llevan el código de los módulos dentro, para que funcionen solos. Si se cambia algo en
+`src/`, hay que volver a generarlos:
+
+```bash
+cd src
+python build_notebook.py . ../notebooks/deepfake_kaggle.ipynb auto
+python build_notebook.py . ../notebooks/smoke_test_kaggle.ipynb smoke
+python build_fases.py . ../kaggle/notebooks_ffpp
+python build_fases.py . ../kaggle/notebooks_ffpp_smoke --smoke
+python build_pruebas.py ../notebooks/pruebas_por_partes.ipynb
+```
+
+### `notebooks/`
+
+| Archivo | Qué hace |
+|---|---|
+| `pruebas_por_partes.ipynb` | prueba cada componente por separado (ver la sección Pruebas por partes) |
+| `deepfake_kaggle.ipynb` | versión en un solo notebook: preprocesa, entrena los cuatro modelos seguidos y evalúa; la usa `kaggle/subir_a_kaggle.sh` |
+| `smoke_test_kaggle.ipynb` | el mismo notebook con 6 videos y 1 época, para comprobar que todo corre antes de gastar GPU |
+
+### `kaggle/`
+
+| Archivo | Qué hace |
+|---|---|
+| `ejecutar_ffpp.sh` | ejecuta el protocolo final en Kaggle: sube los notebooks de las tres fases, espera a que terminen y descarga los resultados en `salida_ffpp/` |
+| `subir_a_kaggle.sh` | sube el dataset y ejecuta `deepfake_kaggle.ipynb` (o el smoke test) en una sola sesión de GPU |
+| `notebooks_ffpp/fase1_preproceso.ipynb` | fase 1 (CPU): extrae y alinea los rostros, hace la partición oficial y ajusta la normalización con train |
+| `notebooks_ffpp/fase2_entrenar.ipynb` | fase 2 (GPU): plantilla que entrena un modelo con una semilla; el script reemplaza `__EXPERIMENTO__` y `__SEMILLA__` |
+| `notebooks_ffpp/fase3_analisis.ipynb` | fase 3 (CPU): junta las puntuaciones de todos los modelos y calcula tablas, intervalos y figuras |
+| `notebooks_ffpp_smoke/` | las mismas tres fases con 10 videos por conjunto y 1 época |
+
+### `docs/`
+
+| Archivo o carpeta | Contenido |
+|---|---|
+| `pipeline.png` | diagrama del pipeline implementado |
+| `resultados/auc_resumen.csv` | AUC por modelo y condición de calidad (media entre semillas) |
+| `resultados/auc_por_semilla.csv` | AUC de cada semilla con su intervalo de confianza del 95 % |
+| `resultados/metricas_con_umbral.csv` | exactitud, precisión, recall, F1, EER y matriz de confusión con el umbral fijado en validación |
+| `resultados/comparaciones_pareadas.csv` | diferencias de AUC entre modelos sobre los mismos videos, con intervalo y p-valor |
+| `resultados/fig_auc_por_condicion.png` | gráfico del AUC de cada modelo según la calidad |
+| `diagnostico_asimetria/` | resultados de `diagnostico_asimetria.py`: correlaciones con giro y brillo, sonda lineal por partición y dos figuras |
+| `pruebas/` | figuras y tabla resumen de `pruebas_por_partes.ipynb` |
 
 ## Instalación
 
