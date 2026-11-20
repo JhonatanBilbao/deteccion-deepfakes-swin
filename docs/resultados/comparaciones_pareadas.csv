@@ -1,0 +1,16 @@
+comparacion,pregunta,condicion,semilla,diferencia,ic_inf,ic_sup,p_valor
+robusto_con_aumento − base_sin_aumento,efecto del aumento de calidad,c23,42,0.05714285714285716,-0.01602564102564097,0.2159340659340661,0.23600605143721634
+robusto_con_aumento − base_sin_aumento,efecto del aumento de calidad,c23_regular,42,0.13214285714285712,0.0,0.26785714285714285,0.05950579929399899
+robusto_con_aumento − base_sin_aumento,efecto del aumento de calidad,c23_mala,42,0.11785714285714277,-0.02083333333333337,0.23368818681318693,0.08673726676752395
+robusto_con_aumento − base_sin_aumento,efecto del aumento de calidad,c23_muy_mala,42,0.08571428571428574,-0.03948437500000002,0.30985576923076946,0.25012607160867373
+robusto_con_aumento − base_sin_aumento,efecto del aumento de calidad,c23_jpeg_q30_no_visto,42,0.06428571428571428,-0.06729910714285721,0.2138461538461541,0.34795763993948564
+robusto_con_aumento − ablacion_solo_swin,aporte de la rama de asimetría,c23,42,-0.010714285714285676,-0.07692307692307687,0.0535714285714286,0.7372667675239536
+robusto_con_aumento − ablacion_solo_swin,aporte de la rama de asimetría,c23_regular,42,-0.0035714285714285587,-0.06696428571428564,0.051307806776556796,1.0
+robusto_con_aumento − ablacion_solo_swin,aporte de la rama de asimetría,c23_mala,42,-0.021428571428571463,-0.10256410256410242,0.03284970238095241,0.49117498739283916
+robusto_con_aumento − ablacion_solo_swin,aporte de la rama de asimetría,c23_muy_mala,42,0.010714285714285676,-0.020370370370370372,0.06730769230769235,0.6999495713565305
+robusto_con_aumento − ablacion_solo_swin,aporte de la rama de asimetría,c23_jpeg_q30_no_visto,42,0.0,-0.040848214285714314,0.04166666666666663,1.0
+robusto_con_aumento − ablacion_solo_asimetria,aporte de la rama Swin,c23,42,0.08571428571428574,-0.17828124999999992,0.2707331730769232,0.40342914775592537
+robusto_con_aumento − ablacion_solo_asimetria,aporte de la rama Swin,c23_regular,42,0.15357142857142858,-0.10550595238095238,0.3607142857142857,0.20574886535552195
+robusto_con_aumento − ablacion_solo_asimetria,aporte de la rama Swin,c23_mala,42,0.20714285714285718,0.03681640625000002,0.4030277777777779,0.020171457387796268
+robusto_con_aumento − ablacion_solo_asimetria,aporte de la rama Swin,c23_muy_mala,42,0.13928571428571423,-0.12354761904761898,0.5192307692307692,0.25718608169440244
+robusto_con_aumento − ablacion_solo_asimetria,aporte de la rama Swin,c23_jpeg_q30_no_visto,42,0.125,-0.12499999999999989,0.33169642857142867,0.44478063540090773

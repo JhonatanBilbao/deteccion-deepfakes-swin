@@ -1,0 +1,24 @@
+# datos y salidas (FaceForensics++ no se redistribuye)
+dataset/
+*.mp4
+*.npz
+*.npy
+*.safetensors
+*.task
+salida_*/
+outputs*/
+cache*/
+checkpoints/
+prep/
+analisis/
+
+# kaggle
+kaggle/kernel_tmp/
+kaggle/kernel_*/
+dataset-metadata.json
+
+# python / jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
